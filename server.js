@@ -2,57 +2,68 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const materialRoutes = require('./routes/materialRoute');
+const fs = require('fs');
 const projectRoutes = require('./routes/projectRoute');
 const speckleRoutes = require('./routes/speckleRoute');
+const materialRoutes = require('./routes/materialRoute');
+const { errorHandler } = require('./middleware/errorHandler');
 const cleanupOldModels = require('./scripts/cleanupModels');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/3d-build-software';
+const PORT = process.env.PORT || 10000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
 
-// Connect to MongoDB
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'public', 'uploads', 'models');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Serve static files
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Routes
-app.use('/api/materials', materialRoutes);
 app.use('/api/projects', projectRoutes);
-app.use('/api', speckleRoutes);
+app.use('/api/speckle', speckleRoutes);
+app.use('/api/materials', materialRoutes);
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
-app.use('/uploads/models', express.static(path.join(__dirname, 'public/uploads/models')));
+// Error handling
+app.use(errorHandler);
+
+// MongoDB connection with retry logic
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      retryWrites: true,
+      w: 'majority',
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    // Retry connection after 5 seconds
+    setTimeout(connectDB, 5000);
+  }
+};
+
+// Connect to MongoDB
+connectDB();
 
 // Run cleanup on startup
 cleanupOldModels().catch(err => {
-  console.error('Initial cleanup failed:', err);
+  console.error('Error during model cleanup:', err);
 });
 
 // Schedule cleanup to run daily
 setInterval(() => {
   cleanupOldModels().catch(err => {
-    console.error('Scheduled cleanup failed:', err);
+    console.error('Error during scheduled model cleanup:', err);
   });
-}, 24 * 60 * 60 * 1000); // Run every 24 hours
-
-// Global error handling
-app.use((err, req, res, next) => {
-  console.error('Global error:', err);
-  res.status(500).json({
-    success: false,
-    error: 'Internal server error'
-  });
-});
+}, 24 * 60 * 60 * 1000);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

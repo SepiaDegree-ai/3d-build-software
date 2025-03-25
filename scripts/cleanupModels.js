@@ -1,36 +1,36 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-const MODELS_DIR = path.join(__dirname, '../public/uploads/models');
-const MAX_AGE_DAYS = 7;
-
-async function cleanupOldModels() {
+const cleanupOldModels = async () => {
   try {
-    // Get all files in the models directory
-    const files = await fs.readdir(MODELS_DIR);
-    const now = Date.now();
-    const maxAge = MAX_AGE_DAYS * 24 * 60 * 60 * 1000; // Convert days to milliseconds
-
-    for (const file of files) {
-      const filePath = path.join(MODELS_DIR, file);
-      const stats = await fs.stat(filePath);
-
-      // Check if file is older than MAX_AGE_DAYS
-      if (now - stats.mtime.getTime() > maxAge) {
-        try {
-          await fs.unlink(filePath);
-          console.log(`Deleted old model file: ${file}`);
-        } catch (err) {
-          console.error(`Failed to delete file ${file}:`, err);
-        }
-      }
+    const uploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'models');
+    
+    // Check if directory exists
+    try {
+      await fs.access(uploadsDir);
+    } catch (error) {
+      console.log('Uploads directory does not exist, skipping cleanup');
+      return;
     }
 
-    console.log('Model cleanup completed successfully');
-  } catch (err) {
-    console.error('Error during model cleanup:', err);
+    const files = await fs.readdir(uploadsDir);
+    const now = Date.now();
+    const oneWeek = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+
+    for (const file of files) {
+      const filePath = path.join(uploadsDir, file);
+      const stats = await fs.stat(filePath);
+      
+      if (now - stats.mtime.getTime() > oneWeek) {
+        await fs.unlink(filePath);
+        console.log(`Deleted old file: ${file}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error during model cleanup:', error);
+    // Don't throw the error, just log it
   }
-}
+};
 
 // Run cleanup if called directly
 if (require.main === module) {
