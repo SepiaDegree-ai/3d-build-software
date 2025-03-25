@@ -30,7 +30,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/speckle', speckleRoutes);
 app.use('/api/materials', materialRoutes);
 
-// Error handling
+// Error handling middleware should be last
 app.use(errorHandler);
 
 // MongoDB connection with retry logic
