@@ -1,0 +1,32 @@
+{
+  "default": {
+    "price": 100,
+    "unit": "USD/m²",
+    "color": "#cccccc",
+    "description": "Standard material"
+  },
+  "wood": {
+    "price": 120,
+    "unit": "USD/m²",
+    "color": "#8B4513",
+    "description": "Natural wood finish"
+  },
+  "metal": {
+    "price": 180,
+    "unit": "USD/m²",
+    "color": "#A8A8A8",
+    "description": "Brushed metal finish"
+  },
+  "glass": {
+    "price": 150,
+    "unit": "USD/m²",
+    "color": "#ADD8E6",
+    "description": "Tempered glass"
+  },
+  "plastic": {
+    "price": 90,
+    "unit": "USD/m²",
+    "color": "#1E90FF",
+    "description": "Durable plastic"
+  }
+} 
