@@ -239,34 +239,24 @@ const MaterialCard = ({ material, onEdit, onDelete }) => {
   );
 };
 
-const MaterialStats = ({ materials }) => {
-  const stats = materials.reduce((acc, mat) => {
-    acc.total++;
-    acc.categories[mat.category] = (acc.categories[mat.category] || 0) + 1;
-    acc.totalValue += mat.price;
-    return acc;
-  }, { total: 0, categories: {}, totalValue: 0 });
+const MaterialStats = ({ materials = [] }) => {
+  const totalMaterials = materials.length;
+  const totalValue = materials.reduce((sum, mat) => sum + Number(mat.price), 0);
+  const avgPrice = totalMaterials ? (totalValue / totalMaterials).toFixed(2) : 0;
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-6">
-      <h3 className="font-medium mb-3">Material Statistics</h3>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="bg-blue-50 p-3 rounded">
-          <p className="text-sm text-gray-600">Total Materials</p>
-          <p className="text-xl font-bold text-blue-600">{stats.total}</p>
-        </div>
-        <div className="bg-green-50 p-3 rounded">
-          <p className="text-sm text-gray-600">Avg. Price/m²</p>
-          <p className="text-xl font-bold text-green-600">
-            ${(stats.totalValue / stats.total || 0).toFixed(2)}
-          </p>
-        </div>
-        {Object.entries(stats.categories).map(([category, count]) => (
-          <div key={category} className="bg-gray-50 p-3 rounded">
-            <p className="text-sm text-gray-600 capitalize">{category}</p>
-            <p className="text-xl font-bold text-gray-600">{count}</p>
-          </div>
-        ))}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h3 className="text-lg font-semibold">Total Materials</h3>
+        <p className="text-2xl">{totalMaterials}</p>
+      </div>
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h3 className="text-lg font-semibold">Average Price</h3>
+        <p className="text-2xl">${avgPrice}/m²</p>
+      </div>
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h3 className="text-lg font-semibold">Total Value</h3>
+        <p className="text-2xl">${totalValue.toFixed(2)}</p>
       </div>
     </div>
   );
@@ -280,11 +270,13 @@ const MaterialManager = () => {
 
   const fetchMaterials = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/materials`);
-      setMaterials(response.data.data);
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/api/materials`);
+      setMaterials(response.data || []);
     } catch (err) {
-      setError('Failed to load materials');
       console.error('Error fetching materials:', err);
+      setError('Failed to load materials');
+      setMaterials([]);
     } finally {
       setLoading(false);
     }
@@ -298,58 +290,74 @@ const MaterialManager = () => {
     if (editingMaterial) {
       await axios.put(`${API_BASE_URL}/materials/${editingMaterial._id}`, formData);
     } else {
-      await axios.post(`${API_BASE_URL}/materials`, formData);
+      await axios.post(`${API_BASE_URL}/api/materials`, formData);
     }
     setEditingMaterial(null);
     fetchMaterials();
   };
 
   const handleDelete = async (id) => {
-    await axios.delete(`${API_BASE_URL}/materials/${id}`);
-    fetchMaterials();
+    try {
+      await axios.delete(`${API_BASE_URL}/api/materials/${id}`);
+      fetchMaterials();
+    } catch (err) {
+      console.error('Error deleting material:', err);
+      throw err;
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 p-8">
+        <div className="max-w-6xl mx-auto">
+          <h1 className="text-3xl font-bold mb-8">Material Manager</h1>
+          <div className="text-center py-8">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
-      <div className="text-red-500 text-center py-8">
-        {error}
+      <div className="min-h-screen bg-gray-100 p-8">
+        <div className="max-w-6xl mx-auto">
+          <h1 className="text-3xl font-bold mb-8">Material Manager</h1>
+          <div className="bg-red-50 text-red-500 p-4 rounded mb-8">{error}</div>
+          <MaterialForm onSubmit={handleSubmit} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-8">Material Manager</h1>
-
-      {!loading && <MaterialStats materials={materials} />}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div>
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8">Material Manager</h1>
+        
+        <MaterialStats materials={materials} />
+        
+        <div className="grid md:grid-cols-2 gap-8">
           <MaterialForm
             onSubmit={handleSubmit}
             initialData={editingMaterial}
             isEditing={!!editingMaterial}
           />
-        </div>
-
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold mb-4">Material List</h2>
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {materials.map(material => (
+          
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold mb-4">Materials List</h2>
+            {materials.length === 0 ? (
+              <p className="text-gray-500">No materials added yet.</p>
+            ) : (
+              materials.map(material => (
                 <MaterialCard
                   key={material._id}
                   material={material}
                   onEdit={setEditingMaterial}
                   onDelete={handleDelete}
                 />
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>
