@@ -170,9 +170,9 @@ const MaterialForm = ({ onSubmit, initialData = null, isEditing = false }) => {
 };
 
 const MaterialCard = ({ material, onEdit, onDelete }) => {
-  if (!material) return null;
-
   const [deleting, setDeleting] = useState(false);
+
+  if (!material) return null;
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this material?')) return;
