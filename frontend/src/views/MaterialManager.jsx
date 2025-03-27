@@ -170,6 +170,8 @@ const MaterialForm = ({ onSubmit, initialData = null, isEditing = false }) => {
 };
 
 const MaterialCard = ({ material, onEdit, onDelete }) => {
+  if (!material) return null;
+
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
@@ -198,7 +200,7 @@ const MaterialCard = ({ material, onEdit, onDelete }) => {
         ) : (
           <div
             className="w-full h-full"
-            style={{ backgroundColor: material.color }}
+            style={{ backgroundColor: material.color || '#cccccc' }}
           />
         )}
       </div>
@@ -228,7 +230,7 @@ const MaterialCard = ({ material, onEdit, onDelete }) => {
 
         <div className="mt-2 text-sm">
           <p className="font-medium text-gray-900">
-            ${material.price.toFixed(2)}/m²
+            ${(material.price || 0).toFixed(2)}/m²
           </p>
           {material.description && (
             <p className="text-gray-600 mt-1">{material.description}</p>
@@ -239,10 +241,16 @@ const MaterialCard = ({ material, onEdit, onDelete }) => {
   );
 };
 
-const MaterialStats = ({ materials = [] }) => {
-  const totalMaterials = materials.length;
-  const totalValue = materials.reduce((sum, mat) => sum + Number(mat.price), 0);
-  const avgPrice = totalMaterials ? (totalValue / totalMaterials).toFixed(2) : 0;
+const MaterialStats = ({ materials }) => {
+  const safeArray = Array.isArray(materials) ? materials : [];
+  
+  const totalMaterials = safeArray.length;
+  const totalValue = safeArray.reduce((sum, mat) => {
+    const price = mat && typeof mat.price === 'number' ? mat.price : 0;
+    return sum + price;
+  }, 0);
+  
+  const avgPrice = totalMaterials > 0 ? (totalValue / totalMaterials).toFixed(2) : '0.00';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -272,7 +280,7 @@ const MaterialManager = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/api/materials`);
-      setMaterials(response.data || []);
+      setMaterials(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Error fetching materials:', err);
       setError('Failed to load materials');
@@ -287,13 +295,18 @@ const MaterialManager = () => {
   }, []);
 
   const handleSubmit = async (formData) => {
-    if (editingMaterial) {
-      await axios.put(`${API_BASE_URL}/materials/${editingMaterial._id}`, formData);
-    } else {
-      await axios.post(`${API_BASE_URL}/api/materials`, formData);
+    try {
+      if (editingMaterial) {
+        await axios.put(`${API_BASE_URL}/api/materials/${editingMaterial._id}`, formData);
+      } else {
+        await axios.post(`${API_BASE_URL}/api/materials`, formData);
+      }
+      setEditingMaterial(null);
+      fetchMaterials();
+    } catch (err) {
+      console.error('Error submitting material:', err);
+      throw err;
     }
-    setEditingMaterial(null);
-    fetchMaterials();
   };
 
   const handleDelete = async (id) => {
@@ -345,12 +358,12 @@ const MaterialManager = () => {
           
           <div className="space-y-4">
             <h2 className="text-xl font-bold mb-4">Materials List</h2>
-            {materials.length === 0 ? (
+            {!Array.isArray(materials) || materials.length === 0 ? (
               <p className="text-gray-500">No materials added yet.</p>
             ) : (
               materials.map(material => (
                 <MaterialCard
-                  key={material._id}
+                  key={material?._id || Math.random()}
                   material={material}
                   onEdit={setEditingMaterial}
                   onDelete={handleDelete}
