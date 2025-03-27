@@ -4,12 +4,15 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import axios from 'axios';
 import { API_BASE_URL } from '../lib/api';
+import MaterialSidebar from './MaterialSidebar';
 
 export default function ModelViewer() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedObject, setSelectedObject] = useState(null);
+  const [materialSelections, setMaterialSelections] = useState({});
+  const [totalPrice, setTotalPrice] = useState(0);
   
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
@@ -103,6 +106,11 @@ export default function ModelViewer() {
     raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
     const intersects = raycasterRef.current.intersectObject(modelRef.current, true);
 
+    // Reset previous selection highlight
+    if (selectedObject && selectedObject.material) {
+      selectedObject.material.emissiveIntensity = 0;
+    }
+
     if (intersects.length > 0) {
       const selected = intersects[0].object;
       setSelectedObject(selected);
@@ -112,7 +120,23 @@ export default function ModelViewer() {
         selected.material.emissive = new THREE.Color(0x666666);
         selected.material.emissiveIntensity = 0.5;
       }
+    } else {
+      setSelectedObject(null);
     }
+  };
+
+  const handleMaterialApply = ({ objectId, materialId, price }) => {
+    setMaterialSelections(prev => ({
+      ...prev,
+      [objectId]: { materialId, price }
+    }));
+
+    // Update total price
+    const newTotal = Object.values(materialSelections).reduce(
+      (sum, selection) => sum + selection.price,
+      price // Add the new selection's price
+    );
+    setTotalPrice(newTotal);
   };
 
   const handleFileChange = (e) => {
@@ -175,6 +199,10 @@ export default function ModelViewer() {
           cameraRef.current.position.set(5, 5, 5);
           cameraRef.current.lookAt(0, 0, 0);
         }
+
+        // Reset material selections
+        setMaterialSelections({});
+        setTotalPrice(0);
       }, undefined, (error) => {
         console.error('Error loading model:', error);
         setError('Failed to load 3D model');
@@ -184,6 +212,24 @@ export default function ModelViewer() {
       setError(err.response?.data?.error || 'Failed to upload model');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveProject = async () => {
+    if (!modelRef.current) return;
+
+    try {
+      const projectData = {
+        modelUrl: modelRef.current.userData.modelUrl,
+        materialSelections,
+        totalPrice,
+      };
+
+      await axios.post(`${API_BASE_URL}/api/projects`, projectData);
+      alert('Project saved successfully!');
+    } catch (err) {
+      console.error('Error saving project:', err);
+      alert('Failed to save project');
     }
   };
 
@@ -221,18 +267,42 @@ export default function ModelViewer() {
         </form>
       </div>
 
-      <div 
-        ref={containerRef}
-        className="bg-white p-6 rounded-lg shadow w-full h-[600px]"
-        onClick={handleClick}
-      >
-        {selectedObject && (
-          <div className="absolute top-4 right-4 bg-white p-4 rounded shadow-lg">
-            <h3 className="font-medium">Selected Object</h3>
-            <p className="text-sm text-gray-600">{selectedObject.name || 'Unnamed Object'}</p>
-          </div>
-        )}
+      <div className="flex gap-6">
+        <div 
+          ref={containerRef}
+          className="bg-white p-6 rounded-lg shadow flex-1 h-[600px]"
+          onClick={handleClick}
+        >
+          {selectedObject && (
+            <div className="absolute top-4 left-4 bg-white p-4 rounded shadow-lg">
+              <h3 className="font-medium">Selected Object</h3>
+              <p className="text-sm text-gray-600">{selectedObject.name || 'Unnamed Object'}</p>
+            </div>
+          )}
+        </div>
+
+        <MaterialSidebar
+          selectedObject={selectedObject}
+          onMaterialApply={handleMaterialApply}
+        />
       </div>
+
+      {modelRef.current && (
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-semibold">Project Summary</h3>
+              <p className="text-gray-600">Total Price: ${totalPrice.toFixed(2)}</p>
+            </div>
+            <button
+              onClick={handleSaveProject}
+              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+            >
+              Save Project
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

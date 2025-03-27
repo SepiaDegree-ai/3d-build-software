@@ -1,0 +1,23 @@
+{
+  "name": "3d-build-software-backend",
+  "version": "1.0.0",
+  "description": "Backend for 3D Build Software",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@speckle/objectloader": "^2.0.0",
+    "@speckle/viewer": "^2.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.17.1",
+    "mongoose": "^6.0.0",
+    "multer": "^1.4.4-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}
