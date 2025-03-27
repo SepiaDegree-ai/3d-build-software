@@ -5,17 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="3D Build Software - Model Viewer and Material Manager" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;" />
     <title>3D Build Software</title>
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <script>
-      window.onload = function() {
-        console.log('Basic JavaScript test - window.onload');
-        document.body.style.backgroundColor = '#f0f0f0';
-      }
-    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    <script>
+      (function() {
+        console.log('Immediate test - script loaded');
+        window.addEventListener('DOMContentLoaded', function() {
+          console.log('DOMContentLoaded fired');
+        });
+        window.addEventListener('load', function() {
+          console.log('Window load fired');
+          document.body.style.backgroundColor = '#f0f0f0';
+        });
+      })();
+    </script>
   </body>
 </html>
